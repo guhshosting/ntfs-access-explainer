@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ntfs-access-explainer:schema:1.0",
+  "title": "ntfs-access-explainer 1.0 output",
+  "oneOf": [{"$ref": "#/$defs/report"}, {"$ref": "#/$defs/error"}],
+  "$defs": {
+    "sid": {"type": ["string", "null"], "pattern": "^S-1-[0-9]+(-[0-9]+)*$"},
+    "mask": {"type": ["string", "null"], "pattern": "^0x[0-9A-F]{8}$"},
+    "strings": {"type": "array", "items": {"type": "string"}},
+    "identity": {
+      "type": "object", "required": ["sid"], "additionalProperties": false,
+      "properties": {"sid": {"$ref": "#/$defs/sid"}}
+    },
+    "ace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["index", "type", "kind", "flags", "inherited", "object_inherit", "container_inherit", "no_propagate", "inherit_only", "sid", "mask", "mapped_mask", "rights", "supported_for_evaluation", "relevance"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0},
+        "type": {"type": "integer", "minimum": 0, "maximum": 255},
+        "kind": {"type": "string"},
+        "flags": {"type": "integer", "minimum": 0, "maximum": 255},
+        "inherited": {"type": "boolean"}, "object_inherit": {"type": "boolean"},
+        "container_inherit": {"type": "boolean"}, "no_propagate": {"type": "boolean"},
+        "inherit_only": {"type": "boolean"}, "sid": {"$ref": "#/$defs/sid"},
+        "mask": {"$ref": "#/$defs/mask"}, "mapped_mask": {"$ref": "#/$defs/mask"},
+        "rights": {"$ref": "#/$defs/strings"}, "supported_for_evaluation": {"type": "boolean"},
+        "relevance": {"type": "string"}
+      }
+    },
+    "aces": {"type": "array", "items": {"$ref": "#/$defs/ace"}},
+    "report": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tool_version", "target", "object_type", "owner", "group", "dacl", "aces", "principal", "effective_access", "integrity", "findings", "limitations", "warnings"],
+      "properties": {
+        "schema_version": {"const": "1.0"}, "tool_version": {"const": "1.0.0"},
+        "target": {"type": "string"}, "object_type": {"enum": ["file", "directory"]},
+        "owner": {"$ref": "#/$defs/identity"}, "group": {"$ref": "#/$defs/identity"},
+        "dacl": {
+          "type": "object", "additionalProperties": false, "required": ["state", "protected"],
+          "properties": {"state": {"enum": ["absent", "null", "empty", "present"]}, "protected": {"type": "boolean"}}
+        },
+        "aces": {"$ref": "#/$defs/aces"},
+        "principal": {
+          "type": "object", "additionalProperties": false, "required": ["sid", "context", "token_integrity_sid"],
+          "properties": {
+            "sid": {"type": "string", "pattern": "^S-1-[0-9]+(-[0-9]+)*$"},
+            "context": {"enum": ["current-process-token", "sid-inspection-only"]},
+            "token_integrity_sid": {"$ref": "#/$defs/sid"}
+          }
+        },
+        "effective_access": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "scope", "authoritative", "granted_mask", "win32_result", "rights"],
+          "properties": {
+            "status": {"enum": ["evaluated", "not-calculated"]},
+            "scope": {"type": "string"}, "authoritative": {"type": "boolean"},
+            "granted_mask": {"$ref": "#/$defs/mask"},
+            "win32_result": {"type": ["integer", "null"], "minimum": 0},
+            "rights": {"$ref": "#/$defs/strings"}
+          },
+          "allOf": [{
+            "if": {"properties": {"status": {"const": "not-calculated"}}},
+            "then": {"properties": {"authoritative": {"const": false}, "granted_mask": {"type": "null"}, "win32_result": {"type": "null"}, "rights": {"maxItems": 0}}},
+            "else": {"properties": {"authoritative": {"const": true}, "granted_mask": {"type": "string"}, "win32_result": {"enum": [0, 5]}}}
+          }]
+        },
+        "integrity": {
+          "type": "object", "additionalProperties": false, "required": ["status", "aces"],
+          "properties": {"status": {"enum": ["queried-label-only", "unavailable"]}, "aces": {"$ref": "#/$defs/aces"}}
+        },
+        "findings": {"$ref": "#/$defs/strings"}, "limitations": {"$ref": "#/$defs/strings"}, "warnings": {"$ref": "#/$defs/strings"}
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "error"],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "error": {
+          "type": "object", "additionalProperties": false, "required": ["message", "win32_code"],
+          "properties": {"message": {"type": "string"}, "win32_code": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}
